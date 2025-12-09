@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lunar Archive // Realistic</title>
+    <!-- Import Dot Matrix Font for the UI -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-color: #080808;
+            --text-color: #f0f0f0;
+            --accent-color: #d71921; /* Nothing Red */
+            --dim-color: #444;
+            --glass-bg: rgba(20, 20, 20, 0.6);
+            --font-main: 'DotGothic16', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            /* Subtle grain texture */
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+        }
+
+        .container {
+            width: 90%;
+            max-width: 450px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            z-index: 2;
+            padding: 20px;
+        }
+
+        /* Header */
+        header {
+            border-left: 4px solid var(--accent-color);
+            padding-left: 15px;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            line-height: 1;
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        /* Inputs */
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-direction: column;
+        }
+
+        .input-group {
+            position: relative;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--dim-color);
+            padding: 15px;
+            border-radius: 8px;
+            transition: 0.3s;
+        }
+        
+        .input-group:focus-within {
+            border-color: var(--text-color);
+            background: rgba(255,255,255,0.1);
+        }
+
+        label {
+            font-size: 0.8rem;
+            color: #aaa;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        input[type="date"] {
+            background: transparent;
+            border: none;
+            color: var(--text-color);
+            font-family: var(--font-main);
+            font-size: 1.2rem;
+            width: 100%;
+            outline: none;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        /* Webkit calendar icon fix */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            opacity: 0.6;
+            cursor: pointer;
+        }
+
+        button {
+            background: var(--text-color);
+            color: var(--bg-color);
+            border: none;
+            padding: 16px;
+            font-family: var(--font-main);
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.1);
+        }
+
+        button:hover {
+            background: var(--accent-color);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(215, 25, 33, 0.4);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        /* Display Area */
+        .display-unit {
+            background: var(--bg-color);
+            border: 1px solid var(--dim-color);
+            border-radius: 12px;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            min-height: 350px;
+            overflow: hidden;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.8);
+        }
+
+        /* Canvas */
+        canvas {
+            width: 250px;
+            height: 250px;
+            border-radius: 50%;
+            /* Realistic Glow */
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.1), inset 0 0 20px rgba(0,0,0,0.8);
+            transition: opacity 0.5s ease;
+        }
+
+        .meta-info {
+            margin-top: 20px;
+            text-align: center;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.6s ease;
+        }
+
+        .meta-info.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .phase-title {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+            color: var(--accent-color);
+        }
+
+        .phase-desc {
+            font-size: 0.9rem;
+            color: #888;
+        }
+
+        /* Loading Spinner */
+        .loader {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--dim-color);
+            border-top: 4px solid var(--accent-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Moon // View</h1>
+            <div class="subtitle">REAL-TIME SHADOW SIMULATION</div>
+        </header>
+
+        <div class="controls">
+            <div class="input-group">
+                <label>DATE OF BIRTH</label>
+                <input type="date" id="dateInput">
+            </div>
+            <button onclick="calculateAndRender()">Reveal Moon</button>
+        </div>
+
+        <div class="display-unit">
+            <div class="loader" id="loader"></div>
+            <!-- High Res Canvas -->
+            <canvas id="moonCanvas" width="500" height="500"></canvas>
+            
+            <div class="meta-info" id="metaInfo">
+                <div class="phase-title" id="phaseName">--</div>
+                <div class="phase-desc" id="illumination">AWAITING INPUT</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. CONFIGURATION ---
+        const canvas = document.getElementById('moonCanvas');
+        const ctx = canvas.getContext('2d');
+        const dateInput = document.getElementById('dateInput');
+        
+        // High Quality Moon Texture (NASA/Wikimedia Public Domain Source)
+        const moonTextureUrl = "https://upload.wikimedia.org/wikipedia/commons/e/e1/FullMoon2010.jpg";
+        let moonImage = new Image();
+        let imageLoaded = false;
+
+        // Preload Image
+        moonImage.crossOrigin = "Anonymous"; // Allow canvas manipulation
+        moonImage.src = moonTextureUrl;
+        moonImage.onload = () => { imageLoaded = true; };
+
+        // Set default date to today
+        dateInput.valueAsDate = new Date();
+
+        // --- 2. LOGIC ---
+
+        function getMoonData(year, month, day) {
+            // Astronomical calculation for Julian Date
+            if (month < 3) { year--; month += 12; }
+            let a = Math.floor(year / 100);
+            let b = 2 - a + Math.floor(a / 4);
+            let jd = Math.floor(365.25 * (year + 4716)) + Math.floor(30.6001 * (month + 1)) + day + b - 1524.5;
+            
+            // Days since known new moon (Jan 6, 2000)
+            let daysSinceNew = jd - 2451549.5;
+            let cycles = daysSinceNew / 29.53058867;
+            let currentCyclePos = cycles - Math.floor(cycles);
+
+            // currentCyclePos is 0.0 to 1.0
+            // 0.0 = New Moon, 0.5 = Full Moon, 1.0 = New Moon
+            return currentCyclePos;
+        }
+
+        function getPhaseName(fraction) {
+            // fraction is 0 to 1
+            if(fraction < 0.03 || fraction > 0.97) return "New Moon";
+            if(fraction < 0.22) return "Waxing Crescent";
+            if(fraction < 0.28) return "First Quarter";
+            if(fraction < 0.47) return "Waxing Gibbous";
+            if(fraction < 0.53) return "Full Moon";
+            if(fraction < 0.72) return "Waning Gibbous";
+            if(fraction < 0.78) return "Last Quarter";
+            return "Waning Crescent";
+        }
+
+        function drawRealisticMoon(phaseFraction) {
+            const w = canvas.width;
+            const h = canvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+            const r = w / 2; // Radius
+
+            // 1. Clear Canvas
+            ctx.clearRect(0, 0, w, h);
+
+            // 2. Clip Circle (So image stays within round moon shape)
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.clip();
+
+            // 3. Draw Base Real Image
+            if (imageLoaded) {
+                // Draw image slightly larger to cover edges
+                ctx.drawImage(moonImage, 0, 0, w, h);
+            } else {
+                // Fallback if image fails (grey circle)
+                ctx.fillStyle = "#ccc";
+                ctx.fill();
+            }
+
+            // 4. Draw Shadow (The realistic part)
+            // We use globalCompositeOperation = 'source-over' with semi-transparent black
+            // But to get the shape right, we need to draw the shadow shape.
+            
+            ctx.fillStyle = "rgba(0, 0, 0, 0.85)"; // Deep shadow color
+
+            // Logic:
+            // Phase goes 0 -> 1.
+            // 0 = New (Full Shadow)
+            // 0.5 = Full (No Shadow)
+            // 1 = New (Full Shadow)
+            
+            // Normalize phase to -1 (New) to 1 (Full) to -1 (New)
+            // Actually, let's look at illumination width.
+            
+            // We draw the shadow using two curves.
+            
+            ctx.beginPath();
+            
+            // Light comes from Right during Waxing (0 -> 0.5)
+            // Light comes from Left during Waning (0.5 -> 1)
+            
+            const isWaxing = phaseFraction < 0.5;
+            
+            // Width of the terminator ellipse
+            // cos(0) = 1 (Full), cos(PI/2) = 0 (Half), cos(PI) = -1 (New)
+            const sunAngle = phaseFraction * 2 * Math.PI; 
+            const terminatorWidth = Math.cos(sunAngle) * r; 
+
+            // Draw the shadow
+            if (isWaxing) {
+                // WAXING: Shadow is on the LEFT side.
+                // Draw semicircle on left
+                ctx.arc(cx, cy, r, Math.PI/2, Math.PI * 1.5); 
+                // Ellipse to subtract or add shadow
+                ctx.ellipse(cx, cy, Math.abs(terminatorWidth), r, 0, Math.PI * 1.5, Math.PI/2, terminatorWidth > 0);
+            } else {
+                // WANING: Shadow is on the RIGHT side.
+                // Draw semicircle on right
+                ctx.arc(cx, cy, r, Math.PI * 1.5, Math.PI/2);
+                // Ellipse
+                ctx.ellipse(cx, cy, Math.abs(terminatorWidth), r, 0, Math.PI/2, Math.PI * 1.5, terminatorWidth > 0);
+            }
+
+            ctx.fill();
+            
+            // 5. Add Inner Shadow for 3D realism (Atmosphere/Curve falloff)
+            let grad = ctx.createRadialGradient(cx, cy, r * 0.8, cx, cy, r);
+            grad.addColorStop(0, "rgba(0,0,0,0)");
+            grad.addColorStop(1, "rgba(0,0,0,0.4)");
+            ctx.fillStyle = grad;
+            ctx.fillRect(0,0,w,h);
+
+            ctx.restore();
+        }
+
+        function calculateAndRender() {
+            const val = dateInput.value;
+            if(!val) return;
+            
+            const d = new Date(val);
+            const loader = document.getElementById('loader');
+            const meta = document.getElementById('metaInfo');
+            const moonC = document.getElementById('moonCanvas');
+
+            // Animation Reset
+            meta.classList.remove('visible');
+            moonC.style.opacity = "0.2";
+            loader.style.display = "block";
+
+            // Delay for effect and ensuring image load
+            setTimeout(() => {
+                const phase = getMoonData(d.getFullYear(), d.getMonth(), d.getDate());
+                
+                // Render
+                drawRealisticMoon(phase);
+
+                // Update Text
+                const percent = (1 - Math.abs((phase - 0.5) * 2)) * 100;
+                document.getElementById('phaseName').innerText = getPhaseName(phase);
+                document.getElementById('illumination').innerText = `ILLUMINATION: ${percent.toFixed(1)}%`;
+
+                // Show
+                loader.style.display = "none";
+                moonC.style.opacity = "1";
+                meta.classList.add('visible');
+            }, 500);
+        }
+
+        // Initial Load
+        if(!imageLoaded) {
+            moonImage.onload = () => {
+                imageLoaded = true;
+                calculateAndRender();
+            }
+        } else {
+            calculateAndRender();
+        }
+
+    </script>
+</body>
+</html>
